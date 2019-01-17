@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using LitJson;
+using Microsoft.Extensions.Configuration;
 
 namespace deletus_tweetus
 {
@@ -46,17 +47,46 @@ namespace deletus_tweetus
 
         private static void _getConfigKeys()
         {
-            logBlue("\nWhat is your Consumer API Key?");
-            consumerApiKey = Console.ReadLine();
+            logBlue("Reading Configuration values from appsettings.json ...");
 
-            logBlue("\nWhat is your Consumer API Secret Key?");
-            consumerApiSecretKey = Console.ReadLine();
+            // see if the user has input the values into appsettings.json and use those as defaults
+            consumerApiKey = ConfigValueProvider.Get("ConsumerApiKey");
+            consumerApiSecretKey = ConfigValueProvider.Get("ConsumerSecretKey");
+            accessToken = ConfigValueProvider.Get("AccessToken");
+            accessTokenSecret = ConfigValueProvider.Get("AccessTokenSecret");
 
-            logBlue("\nWhat is your Access Token?");
-            accessToken = Console.ReadLine();
+            if (consumerApiKey == null)
+            {
+                logBlue("\nWhat is your Consumer API Key?");
+                consumerApiKey = Console.ReadLine();
+            }
 
-            logBlue("\nWhat is your Access Token Secret?");
-            accessTokenSecret = Console.ReadLine();
+            if (consumerApiSecretKey == null)
+            {
+                logBlue("\nWhat is your Consumer API Secret Key?");
+                consumerApiSecretKey = Console.ReadLine();
+            }
+
+
+            if (accessToken == null)
+            {
+                logBlue("\nWhat is your Access Token?");
+                accessToken = Console.ReadLine();
+            }
+
+            if (accessTokenSecret == null)
+            {
+                logBlue("\nWhat is your Access Token Secret?");
+                accessTokenSecret = Console.ReadLine();
+            }
+
+            cLog("\nThe values for your Twitter configuration are:");
+            cLog("Consumer Api Key = " + consumerApiKey);
+            cLog("Consumer Api Secret Key = " + consumerApiSecretKey);
+            cLog("Access Token = " + accessToken);
+            cLog("Access Token Secret = " + accessTokenSecret);
+            cLog("\n");
+
         }
 
         private static string _getBearerAuthToken()
