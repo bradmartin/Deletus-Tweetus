@@ -13,6 +13,13 @@ public static class Utils
         Console.ForegroundColor = ConsoleColor.Green;
     }
 
+    public static void logRed(string value)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine(value);
+        Console.ForegroundColor = ConsoleColor.Green;
+    }
+
     /// <summary>
     /// Helper to print value to console with WriteLine
     /// </summary>

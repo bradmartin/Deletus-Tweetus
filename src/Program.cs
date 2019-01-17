@@ -45,6 +45,10 @@ namespace deletus_tweetus
             Console.ForegroundColor = _cachedConsoleColor;
         }
 
+
+        /// <summary>
+        /// Will check for Twitter Keys and Secrets in appsettings.json file, if not found, user is prompted for input in the terminal.
+        /// </summary>
         private static void _getConfigKeys()
         {
             logBlue("Reading Configuration values from appsettings.json ...");
@@ -55,26 +59,26 @@ namespace deletus_tweetus
             accessToken = ConfigValueProvider.Get("AccessToken");
             accessTokenSecret = ConfigValueProvider.Get("AccessTokenSecret");
 
-            if (consumerApiKey == null)
+            if (String.IsNullOrEmpty(consumerApiKey))
             {
                 logBlue("\nWhat is your Consumer API Key?");
                 consumerApiKey = Console.ReadLine();
             }
 
-            if (consumerApiSecretKey == null)
+            if (String.IsNullOrEmpty(consumerApiSecretKey))
             {
                 logBlue("\nWhat is your Consumer API Secret Key?");
                 consumerApiSecretKey = Console.ReadLine();
             }
 
 
-            if (accessToken == null)
+            if (String.IsNullOrEmpty(accessToken))
             {
                 logBlue("\nWhat is your Access Token?");
                 accessToken = Console.ReadLine();
             }
 
-            if (accessTokenSecret == null)
+            if (String.IsNullOrEmpty(accessTokenSecret))
             {
                 logBlue("\nWhat is your Access Token Secret?");
                 accessTokenSecret = Console.ReadLine();
@@ -86,6 +90,19 @@ namespace deletus_tweetus
             cLog("Access Token = " + accessToken);
             cLog("Access Token Secret = " + accessTokenSecret);
             cLog("\n");
+
+            // if any value is null, print message and exit since they are required to use the Twitter API.
+            if (
+                String.IsNullOrEmpty(consumerApiKey) ||
+                String.IsNullOrEmpty(consumerApiSecretKey) ||
+                String.IsNullOrEmpty(accessToken) ||
+                String.IsNullOrEmpty(accessTokenSecret)
+                )
+            {
+                logRed("All of the Twitter Api Keys and Secrets are required to communicate with the Twitter API. \nDeletus-Tweetus is now exiting.");
+                Environment.Exit(0);
+                return;
+            }
 
         }
 
