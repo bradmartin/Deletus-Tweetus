@@ -4,14 +4,20 @@ using System.Net.Http.Headers;
 using System.Linq;
 using System.Web;
 using static Utils;
+using static Silly;
+using System.Collections.Generic;
+using System.Net;
+using System.Text;
+using System.Threading.Tasks;
+using System.IO;
+using LitJson;
 
 namespace deletus_tweetus
 {
     class Program
     {
-        private static readonly HttpClient client = new HttpClient();
         private static ConsoleColor _cachedConsoleColor;
-
+        private static readonly HttpClient client = new HttpClient();
         static string consumerApiKey, consumerApiSecretKey, accessToken, accessTokenSecret;
 
         static void Main(string[] args)
@@ -20,19 +26,19 @@ namespace deletus_tweetus
             _cachedConsoleColor = Console.ForegroundColor;
 
             // Show the welcome message for the program
-            _showWelcomeMessage();
+            showWelcomeMessage();
 
             // get the app keys and tokens for twitter app account
             _getConfigKeys();
 
             // need to wire up the HTTP GET and then the DELETE process here
-            cLog(consumerApiKey);
-
-            string x = _getBearerAuthToken();
-            cLog("x: " + x);
-
-            string msg = ProcessRepositories();
-            cLog(msg);
+            var result = _getBearerAuthToken();
+            // cLog("StatusCode: " + result.StatusCode);
+            // cLog("Headers: " + result.Headers);
+            // cLog("Content: " + result.Content);
+            // cLog("ReasonPhrase: " + result.ReasonPhrase);
+            // cLog("RequestMessage: " + result.RequestMessage);
+            // cLog("Content.Headers: " + result.Content.Headers);
 
             // Reset the console color to what it was in beginning
             Console.ForegroundColor = _cachedConsoleColor;
@@ -55,105 +61,92 @@ namespace deletus_tweetus
 
         private static string _getBearerAuthToken()
         {
-            var encodedKey = HttpUtility.UrlEncode(consumerApiKey);
-            var encodedSecret = HttpUtility.UrlEncode(consumerApiSecretKey);
-            var concatKeySecret = $"Concatened Encoded Key: {encodedKey}:{encodedSecret}";
-            cLog(concatKeySecret);
+            string encodedKey = Uri.EscapeDataString(consumerApiKey);
+            string encodedSecret = Uri.EscapeDataString(consumerApiSecretKey);
+            string concatenatedCredentials = encodedKey + ":" + encodedSecret;
+            byte[] credBytes = Encoding.UTF8.GetBytes(concatenatedCredentials);
+            string base64Credentials = Convert.ToBase64String(credBytes);
+            Console.WriteLine("base64Credentials : {0}", base64Credentials);
 
-            client.DefaultRequestHeaders.Accept.Clear();
-            client.DefaultRequestHeaders.Add("User-Agent", ".Brad Testing");
-            client.DefaultRequestHeaders.Add("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
-            client.DefaultRequestHeaders.Add("Content-Length", "29");
-            client.DefaultRequestHeaders.Add("Accept-Encoding", "gzip");
-            client.DefaultRequestHeaders.Add("Authorization", $"Basic {concatKeySecret}");
+            // FormUrlEncodedContent stringContent = new FormUrlEncodedContent(new[]
+            //     {
+            //         new KeyValuePair<string, string>("User-Agent", "Deletus-Tweetus"),
+            //         new KeyValuePair<string, string>("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8"),
+            //         new KeyValuePair<string, string>("Authorization", $"Basic {plainText}")
+            //     });
+            // Dictionary<string, string> postParams = new Dictionary<string, string> {
+            //     { "grant_type", "client_credentials" }
+            // };
 
-            // var stringTask = client.GetStringAsync("https://api.github.com/orgs/dotnet/repos");
-            string msg = client.GetStringAsync(TwitterEndpoints.OA_TOKEN).Result;
-            return msg;
+            HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, TwitterEndpoints.OA_TOKEN);
+
+            req.Headers.Clear();
+            req.Headers.ExpectContinue = false;
+            req.Headers.Add("User-Agent", "Deletus-Tweetus");
+            // req.Headers.Add("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+            req.Headers.Add("Authorization", $"Basic {concatenatedCredentials}");
+            req.Content = new StringContent("grant_type=client_credentials", Encoding.UTF8, "application/x-www-form-urlencoded");
+
+            cLog("request: " + req);
+            cLog(req.Content.ToString());
+
+            var handler = new HttpClientHandler();
+            if (handler.SupportsAutomaticDecompression)
+                handler.AutomaticDecompression = DecompressionMethods.GZip;
+
+            string response = "";
+            using (var client = new HttpClient(handler))
+            {
+                var content = client.SendAsync(req).Result.Content;
+
+                response = content.ReadAsStringAsync().Result;
+
+                cLog("response: " + response);
+            }
+
+            // HttpResponseMessage response = client.SendAsync(req).Result;
+            // // HttpResponseMessage response = client.PostAsync(TwitterEndpoints.OA_TOKEN, stringContent).Result;
+
+            // var receiveStream = response.Content.ReadAsStringAsync().Result;
+            // StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
+            // var sText = readStream.ReadToEnd();
+            // cLog("sText: " + sText);
+
+            // var sText = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            // cLog("sText: " + sText);
+
+            return response;
         }
 
-        private static void _showWelcomeMessage()
+        internal string EncodeCredentials()
         {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            cLog("*************************************************************");
-            cLog("*                        Genie                              *");
-            cLog("*                                                           *");
-            cLog("*                        _.---.__                           *");
-            cLog("*                       .'        `-.                       *");
-            cLog("*                     /      .--.   |                       *");
-            cLog("*                  \\/  / /    | _ /                        *");
-            cLog("*                  `\\/|/ _(_)                              *");
-            cLog("*                ___ /| _.--'    `.   .                     *");
-            cLog("*               \\  `--' .---.    \\ /|                     *");
-            cLog("*                 )   `      \\     //|                     *");
-            cLog("*                 | __    __ | '/||                         *");
-            cLog("*                 |/ \\  / \\      / ||                     *");
-            cLog("*                 ||  |  |  \\    \\  |                     *");
-            cLog("*                \\|  |  |   /        |                     *");
-            cLog("*                __\\@/  |@ | ___\\--'                      *");
-            cLog("*               (     / ' `--'  __) |                       *");
-            cLog("*              __ > (  .  .--' &'\\                         *");
-            cLog("*             /   `--| _ / --'     &  |                     *");
-            cLog("*             |                 #. |                        *");
-            cLog("*             | q# |                                        *");
-            cLog("*             \\              ,ad#'                         *");
-            cLog("*               `.________.ad####'                          *");
-            cLog("*                 `#####\"\"\"\"\"\"\'\'                    *");
-            cLog("*                  `&#\"                                    *");
-            cLog("*                   &# \" &                                 *");
-            cLog("*                   \"#ba\" *                               *");
-            cLog("*                                                           *");
-            cLog("*************************************************************");
-            Console.ForegroundColor = ConsoleColor.Green;
+            string encodedConsumerKey = Uri.EscapeDataString("hWc3Cqc4QOAAjOzkTZ9z14yI4");
+            string encodedConsumerSecret = Uri.EscapeDataString("2gSqFAPSZqfslUvgBbDGUz5VTlkd3JX9lzEy68sV85AzECjIDN");
+
+            string concatenatedCredentials = encodedConsumerKey + ":" + encodedConsumerSecret;
+
+            byte[] credBytes = Encoding.UTF8.GetBytes(concatenatedCredentials);
+
+            string base64Credentials = Convert.ToBase64String(credBytes);
+            cLog("base64Credentials: " + base64Credentials);
+            return base64Credentials;
         }
 
-
-
-        // private static async string fetchUserTimeline()
+        // private static string ProcessRepositories()
         // {
-        //     cLog("Fetching timeline for user...");
-        //     string queryUrl = $"{TwitterApiBaseUrl}statuses/home_timeline.json?count=200?since_id=";
-        //     cLog($"HTTP GET = {queryUrl}");
-        //     // Add a new Request Message
-        //     HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Get, queryUrl);
+        //     client.DefaultRequestHeaders.Accept.Clear();
+        //     client.DefaultRequestHeaders.Accept.Add(
+        //         new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+        //     client.DefaultRequestHeaders.Add("User-Agent", ".NET Foundation Repository Reporter");
+        //     client.DefaultRequestHeaders.Add("Authorization", "OAuth oauth_consumer_key=" + consumerApiKey + ", oauth_nonce=" + RandomString(32) + ", oauth_signature=" + HttpUtility.UrlEncode(consumerApiSecretKey) + "&" + HttpUtility.UrlEncode(accessTokenSecret) + ", oauth_signature_method=HMAC-SHA1" + ", oauth_timestamp=" + DateTimeOffset.Now.ToUnixTimeSeconds() + ", oauth_token=" + accessToken + ", oauth_version=1.0"
+        //     );
 
-        //     requestMessage.Headers.Add("Accept", "application/vnd.github.v3+json");
-        //     requestMessage.Headers.Add("User-Agent", "HttpClientFactory-Sample");
+        //     // var stringTask = client.GetStringAsync("https://api.github.com/orgs/dotnet/repos");
+        //     string stringTask = client.GetStringAsync(TwitterEndpoints.REST_ROOT_URL + "statuses/user_timeline.json?screen_name=__bradmartin__&count=2").Result;
 
-
-        //     // Send the request to the server
-        //     HttpResponseMessage response = await httpClient.SendAsync(requestMessage);
-
-        //     // Get the response
-        //     var responseString = await response.Content.ReadAsStringAsync();
-        //     // var data = new object[0];
-
-        //     return responseString;
+        //     var msg = stringTask;
+        //     return msg;
         // }
-
-        private static string ProcessRepositories()
-        {
-            client.DefaultRequestHeaders.Accept.Clear();
-            client.DefaultRequestHeaders.Accept.Add(
-                new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
-            client.DefaultRequestHeaders.Add("User-Agent", ".NET Foundation Repository Reporter");
-            client.DefaultRequestHeaders.Add("Authorization", "OAuth oauth_consumer_key=" + consumerApiKey + ", oauth_nonce=" + RandomString(32) + ", oauth_signature=" + HttpUtility.UrlEncode(consumerApiSecretKey) + "&" + HttpUtility.UrlEncode(accessTokenSecret) + ", oauth_signature_method=HMAC-SHA1" + ", oauth_timestamp=" + DateTimeOffset.Now.ToUnixTimeSeconds() + ", oauth_token=" + accessToken + ", oauth_version=1.0"
-            );
-
-            // var stringTask = client.GetStringAsync("https://api.github.com/orgs/dotnet/repos");
-            string stringTask = client.GetStringAsync(TwitterEndpoints.REST_ROOT_URL + "statuses/user_timeline.json?screen_name=__bradmartin__&count=2").Result;
-
-            var msg = stringTask;
-            return msg;
-        }
-
-        private static Random random = new Random();
-        public static string RandomString(int length)
-        {
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            return new string(Enumerable.Repeat(chars, length)
-              .Select(s => s[random.Next(s.Length)]).ToArray());
-        }
 
     }
 }
