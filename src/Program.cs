@@ -108,12 +108,7 @@ namespace deletus_tweetus
 
         private static string _getBearerAuthToken()
         {
-            string encodedKey = Uri.EscapeDataString(consumerApiKey);
-            string encodedSecret = Uri.EscapeDataString(consumerApiSecretKey);
-            string concatenatedCredentials = encodedKey + ":" + encodedSecret;
-            byte[] credBytes = Encoding.UTF8.GetBytes(concatenatedCredentials);
-            string base64Credentials = Convert.ToBase64String(credBytes);
-            Console.WriteLine("base64Credentials : {0}", base64Credentials);
+            string encodedCreds = _encodeCredentials();
 
             // FormUrlEncodedContent stringContent = new FormUrlEncodedContent(new[]
             //     {
@@ -131,44 +126,33 @@ namespace deletus_tweetus
             req.Headers.ExpectContinue = false;
             req.Headers.Add("User-Agent", "Deletus-Tweetus");
             // req.Headers.Add("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
-            req.Headers.Add("Authorization", $"Basic {concatenatedCredentials}");
+            req.Headers.Add("Authorization", $"Basic {encodedCreds}");
             req.Content = new StringContent("grant_type=client_credentials", Encoding.UTF8, "application/x-www-form-urlencoded");
 
             cLog("request: " + req);
             cLog(req.Content.ToString());
 
-            var handler = new HttpClientHandler();
+            HttpClientHandler handler = new HttpClientHandler();
             if (handler.SupportsAutomaticDecompression)
                 handler.AutomaticDecompression = DecompressionMethods.GZip;
 
             string response = "";
-            using (var client = new HttpClient(handler))
+            using (HttpClient client = new HttpClient(handler))
             {
-                var content = client.SendAsync(req).Result.Content;
+                HttpContent content = client.SendAsync(req).Result.Content;
 
                 response = content.ReadAsStringAsync().Result;
 
                 cLog("response: " + response);
             }
 
-            // HttpResponseMessage response = client.SendAsync(req).Result;
-            // // HttpResponseMessage response = client.PostAsync(TwitterEndpoints.OA_TOKEN, stringContent).Result;
-
-            // var receiveStream = response.Content.ReadAsStringAsync().Result;
-            // StreamReader readStream = new StreamReader(receiveStream, Encoding.UTF8);
-            // var sText = readStream.ReadToEnd();
-            // cLog("sText: " + sText);
-
-            // var sText = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            // cLog("sText: " + sText);
-
             return response;
         }
 
-        internal string EncodeCredentials()
+        private static string _encodeCredentials()
         {
-            string encodedConsumerKey = Uri.EscapeDataString("hWc3Cqc4QOAAjOzkTZ9z14yI4");
-            string encodedConsumerSecret = Uri.EscapeDataString("2gSqFAPSZqfslUvgBbDGUz5VTlkd3JX9lzEy68sV85AzECjIDN");
+            string encodedConsumerKey = Uri.EscapeDataString(consumerApiKey);
+            string encodedConsumerSecret = Uri.EscapeDataString(consumerApiSecretKey);
 
             string concatenatedCredentials = encodedConsumerKey + ":" + encodedConsumerSecret;
 
@@ -179,21 +163,6 @@ namespace deletus_tweetus
             return base64Credentials;
         }
 
-        // private static string ProcessRepositories()
-        // {
-        //     client.DefaultRequestHeaders.Accept.Clear();
-        //     client.DefaultRequestHeaders.Accept.Add(
-        //         new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
-        //     client.DefaultRequestHeaders.Add("User-Agent", ".NET Foundation Repository Reporter");
-        //     client.DefaultRequestHeaders.Add("Authorization", "OAuth oauth_consumer_key=" + consumerApiKey + ", oauth_nonce=" + RandomString(32) + ", oauth_signature=" + HttpUtility.UrlEncode(consumerApiSecretKey) + "&" + HttpUtility.UrlEncode(accessTokenSecret) + ", oauth_signature_method=HMAC-SHA1" + ", oauth_timestamp=" + DateTimeOffset.Now.ToUnixTimeSeconds() + ", oauth_token=" + accessToken + ", oauth_version=1.0"
-        //     );
-
-        //     // var stringTask = client.GetStringAsync("https://api.github.com/orgs/dotnet/repos");
-        //     string stringTask = client.GetStringAsync(TwitterEndpoints.REST_ROOT_URL + "statuses/user_timeline.json?screen_name=__bradmartin__&count=2").Result;
-
-        //     var msg = stringTask;
-        //     return msg;
-        // }
 
     }
 }
