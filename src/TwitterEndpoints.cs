@@ -30,9 +30,9 @@ public class TwitterEndpoints
         get { return "https://upload.twitter.com/1.1/"; }
     }
 
-    public static string OA_REQ
+    public static string OA_TOKEN
     {
-        get { return "https://api.twitter.com/oauth/request_token"; }
+        get { return "https://api.twitter.com/oauth2/token"; }
     }
 
     public static string OA_ACCESS
