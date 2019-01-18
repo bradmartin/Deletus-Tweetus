@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 using System.IO;
 using LitJson;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using System.Threading;
+using Newtonsoft.Json.Linq;
 
 namespace deletus_tweetus
 {
@@ -19,7 +22,7 @@ namespace deletus_tweetus
     {
         private static ConsoleColor _cachedConsoleColor;
         private static readonly HttpClient client = new HttpClient();
-        static string consumerApiKey, consumerApiSecretKey, accessToken, accessTokenSecret;
+        private static string consumerApiKey, consumerApiSecretKey, accessToken, accessTokenSecret, TwitterApiBearerToken;
 
         static void Main(string[] args)
         {
@@ -33,17 +36,15 @@ namespace deletus_tweetus
             _getConfigKeys();
 
             // need to wire up the HTTP GET and then the DELETE process here
-            var result = _getBearerAuthToken();
-            // cLog("StatusCode: " + result.StatusCode);
-            // cLog("Headers: " + result.Headers);
-            // cLog("Content: " + result.Content);
-            // cLog("ReasonPhrase: " + result.ReasonPhrase);
-            // cLog("RequestMessage: " + result.RequestMessage);
-            // cLog("Content.Headers: " + result.Content.Headers);
+            _getBearerAuthToken();
+            cLog("TwitterApiBearerToken =  " + TwitterApiBearerToken);
+
+            _getTimeline();
 
             // Reset the console color to what it was in beginning
             Console.ForegroundColor = _cachedConsoleColor;
         }
+
 
 
         /// <summary>
@@ -51,7 +52,7 @@ namespace deletus_tweetus
         /// </summary>
         private static void _getConfigKeys()
         {
-            logBlue("Reading Configuration values from appsettings.json ...");
+            logBlue("\nReading Configuration values from appsettings.json ...");
 
             // see if the user has input the values into appsettings.json and use those as defaults
             consumerApiKey = ConfigValueProvider.Get("ConsumerApiKey");
@@ -99,38 +100,27 @@ namespace deletus_tweetus
                 String.IsNullOrEmpty(accessTokenSecret)
                 )
             {
-                logRed("All of the Twitter Api Keys and Secrets are required to communicate with the Twitter API. \nDeletus-Tweetus is now exiting.");
+                logRed("\nAll of the Twitter Api Keys and Secrets are required to communicate with the Twitter API. \nDeletus-Tweetus is now exiting.");
                 Environment.Exit(0);
                 return;
             }
 
         }
 
-        private static string _getBearerAuthToken()
+        private static void _getBearerAuthToken()
         {
             string encodedCreds = _encodeCredentials();
-
-            // FormUrlEncodedContent stringContent = new FormUrlEncodedContent(new[]
-            //     {
-            //         new KeyValuePair<string, string>("User-Agent", "Deletus-Tweetus"),
-            //         new KeyValuePair<string, string>("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8"),
-            //         new KeyValuePair<string, string>("Authorization", $"Basic {plainText}")
-            //     });
-            // Dictionary<string, string> postParams = new Dictionary<string, string> {
-            //     { "grant_type", "client_credentials" }
-            // };
 
             HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, TwitterEndpoints.OA_TOKEN);
 
             req.Headers.Clear();
             req.Headers.ExpectContinue = false;
             req.Headers.Add("User-Agent", "Deletus-Tweetus");
-            // req.Headers.Add("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
             req.Headers.Add("Authorization", $"Basic {encodedCreds}");
             req.Content = new StringContent("grant_type=client_credentials", Encoding.UTF8, "application/x-www-form-urlencoded");
 
-            cLog("request: " + req);
-            cLog(req.Content.ToString());
+            // cLog("request: " + req);
+            // cLog(req.Content.ToString());
 
             HttpClientHandler handler = new HttpClientHandler();
             if (handler.SupportsAutomaticDecompression)
@@ -140,26 +130,44 @@ namespace deletus_tweetus
             using (HttpClient client = new HttpClient(handler))
             {
                 HttpContent content = client.SendAsync(req).Result.Content;
-
                 response = content.ReadAsStringAsync().Result;
 
-                cLog("response: " + response);
+                //  JSON string into an object so we can get the bearer_token
+                TwitterAuthResponse x = JsonConvert.DeserializeObject<TwitterAuthResponse>(response);
+                TwitterApiBearerToken = x.access_token;
             }
+        }
 
-            return response;
+        private static void _getTimeline()
+        {
+
+            client.DefaultRequestHeaders.Add("User-Agent", "Deletus-Tweetus");
+            client.DefaultRequestHeaders.Add("Authorization", "Bearer " + TwitterApiBearerToken);
+
+            HttpContent x = client.GetAsync("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=realDonaldTrump&count=50").Result.Content;
+            string y = x.ReadAsStringAsync().Result;
+            cLog("Twitter Timeline Result: " + y);
+
+            // write the json from the response to a file for now
+            File.WriteAllText(@"timeline.json", y);
+
+            // TODO: read the entire array returned from the timeline.json
+            // then put all the ids of the tweets into an array
+            // loop the array and send DELETE requests for those tweet ids
+
         }
 
         private static string _encodeCredentials()
         {
+            // encode the key and secret
             string encodedConsumerKey = Uri.EscapeDataString(consumerApiKey);
             string encodedConsumerSecret = Uri.EscapeDataString(consumerApiSecretKey);
-
+            // concat the key and secret
             string concatenatedCredentials = encodedConsumerKey + ":" + encodedConsumerSecret;
-
+            // encoding the concatenated string
             byte[] credBytes = Encoding.UTF8.GetBytes(concatenatedCredentials);
-
+            // converting to base64
             string base64Credentials = Convert.ToBase64String(credBytes);
-            cLog("base64Credentials: " + base64Credentials);
             return base64Credentials;
         }
 

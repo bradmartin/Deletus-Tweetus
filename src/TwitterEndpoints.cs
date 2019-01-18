@@ -10,6 +10,11 @@ public class TwitterEndpoints
         get { return "https://api.twitter.com/1.1/"; }
     }
 
+    public static string USER_TIMELINE_URL
+    {
+        get { return "https://api.twitter.com/1.1/statuses/user_timeline.json?"; }
+    }
+
     public static string PUB_STREAM
     {
         get { return "https://stream.twitter.com/1.1/"; }
