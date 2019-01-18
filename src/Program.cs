@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System.Threading;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics;
 
 namespace deletus_tweetus
 {
@@ -26,6 +27,8 @@ namespace deletus_tweetus
 
         static void Main(string[] args)
         {
+            Stopwatch sw = Stopwatch.StartNew();
+
             // store the current console foreground color so we can reset when done
             _cachedConsoleColor = Console.ForegroundColor;
 
@@ -41,8 +44,12 @@ namespace deletus_tweetus
 
             _getTimeline();
 
+            // print elapsed time
+            logBlue("Program took " + sw.ElapsedMilliseconds.ToString() + " milliseconds.");
+
             // Reset the console color to what it was in beginning
             Console.ForegroundColor = _cachedConsoleColor;
+
         }
 
 
@@ -144,7 +151,7 @@ namespace deletus_tweetus
             client.DefaultRequestHeaders.Add("User-Agent", "Deletus-Tweetus");
             client.DefaultRequestHeaders.Add("Authorization", "Bearer " + TwitterApiBearerToken);
 
-            HttpContent x = client.GetAsync("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=realDonaldTrump&count=50").Result.Content;
+            HttpContent x = client.GetAsync("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=realDonaldTrump&count=3000").Result.Content;
             string y = x.ReadAsStringAsync().Result;
             cLog("Twitter Timeline Result: " + y);
 
