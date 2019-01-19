@@ -23,11 +23,12 @@ namespace deletus_tweetus
     {
         private static ConsoleColor _cachedConsoleColor;
         private static readonly HttpClient client = new HttpClient();
-        private static string consumerApiKey, consumerApiSecretKey, accessToken, accessTokenSecret, TwitterApiBearerToken;
+        private static Stopwatch sw = new Stopwatch();
+        private static string consumerApiKey, consumerApiSecretKey, accessToken, accessTokenSecret, TwitterApiBearerToken, fileReadTime, fileWriteTime;
 
         static void Main(string[] args)
         {
-            Stopwatch sw = Stopwatch.StartNew();
+            sw.Start();
 
             // store the current console foreground color so we can reset when done
             _cachedConsoleColor = Console.ForegroundColor;
@@ -44,12 +45,12 @@ namespace deletus_tweetus
 
             _getTimeline();
 
-            // print elapsed time
-            logBlue("Program took " + sw.ElapsedMilliseconds.ToString() + " milliseconds.");
+            sw.Stop();
+            // show exit log print
+            printExitMessage();
 
             // Reset the console color to what it was in beginning
             Console.ForegroundColor = _cachedConsoleColor;
-
         }
 
 
@@ -147,21 +148,40 @@ namespace deletus_tweetus
 
         private static void _getTimeline()
         {
-
             client.DefaultRequestHeaders.Add("User-Agent", "Deletus-Tweetus");
             client.DefaultRequestHeaders.Add("Authorization", "Bearer " + TwitterApiBearerToken);
 
             HttpContent x = client.GetAsync("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=realDonaldTrump&count=3000").Result.Content;
-            string y = x.ReadAsStringAsync().Result;
-            cLog("Twitter Timeline Result: " + y);
+            string timelineData = x.ReadAsStringAsync().Result;
 
             // write the json from the response to a file for now
-            File.WriteAllText(@"timeline.json", y);
+            long startW = sw.ElapsedMilliseconds;
+            File.WriteAllText(@"timeline.json", timelineData);
+            long endW = sw.ElapsedMilliseconds;
+            fileWriteTime = (endW - startW).ToString();
 
-            // TODO: read the entire array returned from the timeline.json
-            // then put all the ids of the tweets into an array
-            // loop the array and send DELETE requests for those tweet ids
+            long startR = sw.ElapsedMilliseconds;
+            string timelineJson = File.ReadAllText(@"timeline.json");
+            long endR = sw.ElapsedMilliseconds;
+            fileReadTime = (endR - startR).ToString();
 
+
+            // List<int> idList = new List<int>();
+            // JObject z;
+
+            // // TODO: read the entire array returned from the timeline.json
+            // // then put all the ids of the tweets into an array
+            // // loop the array and send DELETE requests for those tweet ids    
+            // using (StreamReader sr = File.OpenText(@"timeline.json"))
+            // {
+            //     string s = String.Empty;
+            //     while ((s = sr.ReadLine()) != null)
+            //     {
+            //         //we're just testing read speeds // 1243ms 1157ms 1131ms 1162ms 1232ms (times)
+            //         // JObject o = JObject.Parse(s);
+            //         cLog("\no: " + s);
+            //     }
+            // }
         }
 
         private static string _encodeCredentials()
@@ -178,6 +198,14 @@ namespace deletus_tweetus
             return base64Credentials;
         }
 
+
+        private static void printExitMessage()
+        {
+            // print file write and read times
+            logBlue($"\nFile Write Time: {fileWriteTime} \nFile Read Time: {fileReadTime}");
+            // print elapsed time
+            logBlue("\nProgram took " + sw.ElapsedMilliseconds.ToString() + " milliseconds.");
+        }
 
     }
 }
