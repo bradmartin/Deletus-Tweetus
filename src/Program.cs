@@ -153,6 +153,13 @@ namespace deletus_tweetus
             HttpContent x = client.GetAsync("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=realDonaldTrump&count=3000").Result.Content;
             string timelineData = x.ReadAsStringAsync().Result;
 
+            JArray tweets = JArray.Parse(timelineData);
+            var xlsy = tweets.ToList();
+            foreach (dynamic t in xlsy)
+            {
+                Console.WriteLine("Tweet: " + t);
+            }
+
             // write the json from the response to a file for now
             long startW = sw.ElapsedMilliseconds;
             File.WriteAllText(@"timeline.json", timelineData);
@@ -163,7 +170,6 @@ namespace deletus_tweetus
             string timelineJson = File.ReadAllText(@"timeline.json");
             long endR = sw.ElapsedMilliseconds;
             fileReadTime = (endR - startR).ToString();
-
 
             // List<int> idList = new List<int>();
             // JObject z;
@@ -181,6 +187,38 @@ namespace deletus_tweetus
             //         cLog("\no: " + s);
             //     }
             // }
+        }
+
+        private static string _deleteTweet(string id)
+        {
+            // POST https://api.twitter.com/1.1/statuses/destroy/240854986559455234.json
+
+            string encodedCreds = _encodeCredentials();
+
+            HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, TwitterEndpoints.REST_ROOT_URL + $"statuses/destroy/{id}");
+            cLog(req.Content.ToString());
+
+            req.Headers.Clear();
+            req.Headers.ExpectContinue = false;
+            req.Headers.Add("User-Agent", "Deletus-Tweetus");
+            req.Headers.Add("Authorization", $"Basic {encodedCreds}");
+            req.Content = new StringContent("grant_type=client_credentials", Encoding.UTF8, "application/x-www-form-urlencoded");
+
+            // cLog("request: " + req);
+            // cLog(req.Content.ToString());
+
+            HttpClientHandler handler = new HttpClientHandler();
+            if (handler.SupportsAutomaticDecompression)
+                handler.AutomaticDecompression = DecompressionMethods.GZip;
+
+            string response = "";
+            using (HttpClient client = new HttpClient(handler))
+            {
+                HttpContent content = client.SendAsync(req).Result.Content;
+                response = content.ReadAsStringAsync().Result;
+            }
+
+            return response;
         }
 
         private static string _encodeCredentials()
