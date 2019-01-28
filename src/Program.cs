@@ -21,12 +21,17 @@ namespace deletus_tweetus
     class Program
     {
         private static ConsoleColor _cachedConsoleColor;
-        private static readonly HttpClient client = new HttpClient();
+        private static HttpClient client;
         private static Stopwatch sw = new Stopwatch();
         private static string consumerApiKey, consumerApiSecretKey, accessToken, accessTokenSecret, TwitterApiBearerToken, fileReadTime, fileWriteTime;
+        public static List<ulong> _tweetIdArray = new List<ulong>();
+
+        private static HttpClientHandler handler = new HttpClientHandler();
 
         static void Main(string[] args)
         {
+            _setupMainProgram();
+
             sw.Start();
 
             // store the current console foreground color so we can reset when done
@@ -44,6 +49,15 @@ namespace deletus_tweetus
 
             _getTimeline();
 
+            // delete a tweet
+            if (_tweetIdArray.Count >= 1)
+            {
+                _tweetIdArray.ForEach(tweetId =>
+                {
+                    _deleteTweet(tweetId);
+                });
+            }
+
             sw.Stop();
             // show exit log print
             printExitMessage();
@@ -51,7 +65,6 @@ namespace deletus_tweetus
             // Reset the console color to what it was in beginning
             Console.ForegroundColor = _cachedConsoleColor;
         }
-
 
 
         /// <summary>
@@ -126,23 +139,14 @@ namespace deletus_tweetus
             req.Headers.Add("Authorization", $"Basic {encodedCreds}");
             req.Content = new StringContent("grant_type=client_credentials", Encoding.UTF8, "application/x-www-form-urlencoded");
 
-            // cLog("request: " + req);
-            // cLog(req.Content.ToString());
-
-            HttpClientHandler handler = new HttpClientHandler();
-            if (handler.SupportsAutomaticDecompression)
-                handler.AutomaticDecompression = DecompressionMethods.GZip;
-
             string response = "";
-            using (HttpClient client = new HttpClient(handler))
-            {
-                HttpContent content = client.SendAsync(req).Result.Content;
-                response = content.ReadAsStringAsync().Result;
 
-                //  JSON string into an object so we can get the bearer_token
-                TwitterAuthResponse x = JsonConvert.DeserializeObject<TwitterAuthResponse>(response);
-                TwitterApiBearerToken = x.access_token;
-            }
+            HttpContent content = client.SendAsync(req).Result.Content;
+            response = content.ReadAsStringAsync().Result;
+
+            //  JSON string into an object so we can get the bearer_token
+            TwitterAuthResponse x = JsonConvert.DeserializeObject<TwitterAuthResponse>(response);
+            TwitterApiBearerToken = x.access_token;
         }
 
         private static void _getTimeline()
@@ -150,14 +154,21 @@ namespace deletus_tweetus
             client.DefaultRequestHeaders.Add("User-Agent", "Deletus-Tweetus");
             client.DefaultRequestHeaders.Add("Authorization", "Bearer " + TwitterApiBearerToken);
 
-            HttpContent x = client.GetAsync("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=realDonaldTrump&count=3000").Result.Content;
+            HttpContent x = client.GetAsync("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=_bradmartin_&count=3000").Result.Content;
             string timelineData = x.ReadAsStringAsync().Result;
 
+            // parse the JSON data from twitter API and put the tweet ids into a List
             JArray tweets = JArray.Parse(timelineData);
-            var xlsy = tweets.ToList();
-            foreach (dynamic t in xlsy)
+            foreach (JObject t in tweets.Children())
             {
-                Console.WriteLine("Tweet: " + t);
+                foreach (JProperty prop in t.Properties())
+                {
+                    if (prop.Name == "id")
+                    {
+                        Console.WriteLine(prop.Value);
+                        _tweetIdArray.Add(prop.Value.ToObject<ulong>());
+                    }
+                }
             }
 
             // write the json from the response to a file for now
@@ -170,33 +181,15 @@ namespace deletus_tweetus
             string timelineJson = File.ReadAllText(@"timeline.json");
             long endR = sw.ElapsedMilliseconds;
             fileReadTime = (endR - startR).ToString();
-
-            // List<int> idList = new List<int>();
-            // JObject z;
-
-            // // TODO: read the entire array returned from the timeline.json
-            // // then put all the ids of the tweets into an array
-            // // loop the array and send DELETE requests for those tweet ids    
-            // using (StreamReader sr = File.OpenText(@"timeline.json"))
-            // {
-            //     string s = String.Empty;
-            //     while ((s = sr.ReadLine()) != null)
-            //     {
-            //         //we're just testing read speeds // 1243ms 1157ms 1131ms 1162ms 1232ms (times)
-            //         // JObject o = JObject.Parse(s);
-            //         cLog("\no: " + s);
-            //     }
-            // }
         }
 
-        private static string _deleteTweet(string id)
+        private static string _deleteTweet(ulong id)
         {
             // POST https://api.twitter.com/1.1/statuses/destroy/240854986559455234.json
 
             string encodedCreds = _encodeCredentials();
 
             HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, TwitterEndpoints.REST_ROOT_URL + $"statuses/destroy/{id}");
-            cLog(req.Content.ToString());
 
             req.Headers.Clear();
             req.Headers.ExpectContinue = false;
@@ -204,19 +197,9 @@ namespace deletus_tweetus
             req.Headers.Add("Authorization", $"Basic {encodedCreds}");
             req.Content = new StringContent("grant_type=client_credentials", Encoding.UTF8, "application/x-www-form-urlencoded");
 
-            // cLog("request: " + req);
-            // cLog(req.Content.ToString());
-
-            HttpClientHandler handler = new HttpClientHandler();
-            if (handler.SupportsAutomaticDecompression)
-                handler.AutomaticDecompression = DecompressionMethods.GZip;
-
             string response = "";
-            using (HttpClient client = new HttpClient(handler))
-            {
-                HttpContent content = client.SendAsync(req).Result.Content;
-                response = content.ReadAsStringAsync().Result;
-            }
+            HttpContent content = client.SendAsync(req).Result.Content;
+            response = content.ReadAsStringAsync().Result;
 
             return response;
         }
@@ -242,6 +225,20 @@ namespace deletus_tweetus
             logBlue($"\nFile Write Time: {fileWriteTime} \nFile Read Time: {fileReadTime}");
             // print elapsed time
             logBlue("\nProgram took " + sw.ElapsedMilliseconds.ToString() + " milliseconds.");
+        }
+
+
+        /// <summary>
+        /// Set up for the program.
+        /// Configures the HttpClient handler and compression if possible.
+        /// </summary>
+        private static void _setupMainProgram()
+        {
+            if (handler.SupportsAutomaticDecompression)
+            {
+                handler.AutomaticDecompression = DecompressionMethods.GZip;
+                client = new HttpClient(handler);
+            }
         }
 
     }
