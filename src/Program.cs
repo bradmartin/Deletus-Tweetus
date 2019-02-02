@@ -25,7 +25,6 @@ namespace deletus_tweetus
         private static Stopwatch sw = new Stopwatch();
         private static string consumerApiKey, consumerApiSecretKey, accessToken, accessTokenSecret, TwitterApiBearerToken, fileReadTime, fileWriteTime;
         public static List<ulong> _tweetIdArray = new List<ulong>();
-
         private static HttpClientHandler handler = new HttpClientHandler();
 
         static void Main(string[] args)
@@ -33,23 +32,18 @@ namespace deletus_tweetus
             _setupMainProgram();
 
             sw.Start();
-
             // store the current console foreground color so we can reset when done
             _cachedConsoleColor = Console.ForegroundColor;
-
             // Show the welcome message for the program
             showWelcomeMessage();
-
             // get the app keys and tokens for twitter app account
             _getConfigKeys();
-
             // need to wire up the HTTP GET and then the DELETE process here
             _getBearerAuthToken();
-            cLog("TwitterApiBearerToken =  " + TwitterApiBearerToken);
-
+            // get the twitter timeline
             _getTimeline();
 
-            // delete a tweet
+            // delete tweets
             if (_tweetIdArray.Count >= 1)
             {
                 _tweetIdArray.ForEach(tweetId =>
@@ -147,13 +141,13 @@ namespace deletus_tweetus
             //  JSON string into an object so we can get the bearer_token
             TwitterAuthResponse x = JsonConvert.DeserializeObject<TwitterAuthResponse>(response);
             TwitterApiBearerToken = x.access_token;
+            cLog("TwitterApiBearerToken =  " + TwitterApiBearerToken + "\n");
         }
 
         private static void _getTimeline()
         {
             client.DefaultRequestHeaders.Add("User-Agent", "Deletus-Tweetus");
             client.DefaultRequestHeaders.Add("Authorization", "Bearer " + TwitterApiBearerToken);
-
             HttpContent x = client.GetAsync("https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=_bradmartin_&count=3000").Result.Content;
             string timelineData = x.ReadAsStringAsync().Result;
 
@@ -165,7 +159,7 @@ namespace deletus_tweetus
                 {
                     if (prop.Name == "id")
                     {
-                        Console.WriteLine(prop.Value);
+                        cLog($"Tweet ID: {prop.Value}");
                         _tweetIdArray.Add(prop.Value.ToObject<ulong>());
                     }
                 }

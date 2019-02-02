@@ -11,14 +11,14 @@ public static class Utils
     /// Prints line to console in foreground color Blue.
     /// </summary>
     /// <param name="value"></param>
-    public static void logBlue(string value)
+    public static void logBlue(object value)
     {
         Console.ForegroundColor = ConsoleColor.Blue;
         Console.WriteLine(value);
         Console.ForegroundColor = ConsoleColor.Green;
     }
 
-    public static void logRed(string value)
+    public static void logRed(object value)
     {
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine(value);
@@ -29,7 +29,7 @@ public static class Utils
     /// Helper to print value to console with WriteLine
     /// </summary>
     /// <param name="value"></param>
-    public static void cLog(string value)
+    public static void cLog(object value)
     {
         Console.WriteLine(value);
     }
